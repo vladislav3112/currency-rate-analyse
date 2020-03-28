@@ -17,8 +17,8 @@ MainWindow::MainWindow(QWidget *parent)
     ui->dateEdit_2->setDate(QDate::currentDate());
     ui->comboBox->addItem("доллар");
     ui->comboBox->addItem("евро");
-    currency_code.insert("R01235","dollar");
-    currency_code.insert("R01239","euro");
+    currency_code.insert("R01235","доллар");
+    currency_code.insert("R01239","евро");
 }
 
 MainWindow::~MainWindow()
@@ -31,8 +31,7 @@ void MainWindow::on_Button_confirm_clicked()
     QString code;
     QString date1 = ui->dateEdit->date().toString("dd/MM/yyyy");
     QString date2 = ui->dateEdit_2->date().toString("dd/MM/yyyy");
-    if(ui->comboBox->currentText()=="доллар")code = currency_code.key("dollar");
-    if(ui->comboBox->currentText()=="евро")code = currency_code.key("euro");
+    code = currency_code.key(ui->comboBox->currentText());
     manager->get(QNetworkRequest(QUrl("http://www.cbr.ru/scripts/XML_daily.asp?date_req="+date1)));
     connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
 }
@@ -65,8 +64,7 @@ void MainWindow::xml_parse(){
     //xml parse
     QVector<double> currency_rate;
     QString code;
-    if(ui->comboBox->currentText()=="доллар") code = currency_code.key("dollar");
-    if(ui->comboBox->currentText()=="евро") code = currency_code.key("euro");
+    code = currency_code.key(ui->comboBox->currentText());
     QString src_rate;
 
     QFile* file = new QFile("valute_rate.xml");
