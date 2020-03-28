@@ -16,14 +16,14 @@ class MainWindow : public QMainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
-
+    QMap<QString,QString> currency_code;
+    void xml_parse();
 private slots:
-    void on_pushButton_clicked();
     void replyFinished(QNetworkReply *reply);
-
     void on_Button_confirm_clicked();
 
 private:
+
     Ui::MainWindow *ui;
 };
 #endif // MAINWINDOW_H
