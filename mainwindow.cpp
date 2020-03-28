@@ -24,36 +24,45 @@ MainWindow::~MainWindow()
 void MainWindow::on_pushButton_clicked()
 {
     //xml parse
-    QMap<QString,QString> current_rate;
-    QMap<QString,QString> etap;
-    current_rate.insert("R01010","dollar");
-    current_rate.insert("R01239","euro");
-
+    QMap<QString,QString> currency_code;
+    QVector<double> dollar_rate;
+    QVector<double> euro_rate;
+    currency_code.insert("R01235","dollar");
+    currency_code.insert("R01239","euro");
+    QString dollar_src_rate;
 
     QFile* file = new QFile("valute_rate.xml");
         if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
         {
             qDebug()<<"Невозможно открыть XML-конфиг";
         }
-    QXmlStreamReader xml(file);
 
+    //file convertation , to .
+    QString line;
+    do
+    {
+        line = file->readLine().replace(",",".");//
+    } while (!line.isNull());
+    file->close();
+    file->open(QIODevice::ReadOnly | QIODevice::Text);
+    QXmlStreamReader xml(file);
 
     while (!xml.atEnd()) {
 
             if(xml.name()=="Valute"){
                 QXmlStreamAttributes attributes = xml.attributes();
-                bool a = attributes.hasAttribute("ID");
              // do processing
                 while (!(xml.tokenType() == QXmlStreamReader::EndElement && xml.name() == "Valute"))
                     {
                         if (xml.tokenType() == QXmlStreamReader::StartElement &&
-                                (current_rate.key("dollar") == attributes.value("ID").toString()
-                                 ))
+                                (currency_code.key("dollar") == attributes.value("ID").toString()))
                         {
                             if (xml.name() == "Value"){
                                 xml.readNext();
-                                if(etap.isEmpty())etap.insert("dollar_rate",xml.text().toString());
-                                else etap["dollar_rate"] = xml.text().toString();
+                                dollar_src_rate = xml.text().toString();
+                                dollar_src_rate.replace(",",".");       //src data correction
+                                if(dollar_rate.isEmpty())dollar_rate.push_back(dollar_src_rate.toDouble());
+                                else dollar_rate[0] = dollar_src_rate.toDouble();
                             }
                         }
                         xml.readNext();
@@ -67,8 +76,9 @@ void MainWindow::on_pushButton_clicked()
     xml.readNext();
 
 }
+
     file->close();
-    ui->label_3->setText(etap["dollar_rate"]);
+    ui->label_3->setText(QString::number(dollar_rate[0]));
 }
 void MainWindow::replyFinished(QNetworkReply *reply){
     QString answer;
