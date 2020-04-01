@@ -32,8 +32,10 @@ void MainWindow::on_Button_confirm_clicked()
     QString date1 = ui->dateEdit->date().toString("dd/MM/yyyy");
     QString date2 = ui->dateEdit_2->date().toString("dd/MM/yyyy");
     code = currency_code.key(ui->comboBox->currentText());
-    manager->get(QNetworkRequest(QUrl("http://www.cbr.ru/scripts/XML_daily.asp?date_req="+date1)));
+    QString url = "http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=" + date1 + "&date_req2=" + date2 + "&VAL_NM_RQ=" + code;
+    manager->get(QNetworkRequest(QUrl(url)));
     connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
+    //http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=02/03/2001&date_req2=02/03/2001&VAL_NM_RQ=R01235 - example
 }
 
 void MainWindow::replyFinished(QNetworkReply *reply)
@@ -68,28 +70,23 @@ void MainWindow::xml_parse(){
     QString src_rate;
 
     QFile* file = new QFile("valute_rate.xml");
-        if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
-        {
-            qDebug()<<"Невозможно открыть XML-конфиг";
-        }
+        if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) qDebug()<<"Невозможно открыть XML-конфиг";
     QXmlStreamReader xml(file);
 
     while (!xml.atEnd()) {
 
-            if(xml.name()=="Valute"){
+            if(xml.name()=="Record"){
                 QXmlStreamAttributes attributes = xml.attributes();
              // do processing
-                while (!(xml.tokenType() == QXmlStreamReader::EndElement && xml.name() == "Valute"))
+                while (!(xml.tokenType() == QXmlStreamReader::EndElement && xml.name() == "Record"))
                     {
-                        if (xml.tokenType() == QXmlStreamReader::StartElement &&
-                               (code == attributes.value("ID").toString()))
+                        if (xml.tokenType() == QXmlStreamReader::StartElement)
                         {
                             if (xml.name() == "Value"){
                                 xml.readNext();
                                 src_rate = xml.text().toString();
                                 src_rate.replace(",",".");       //src data correction
-                                if(currency_rate.isEmpty())currency_rate.push_back(src_rate.toDouble());
-                                else currency_rate[0] = src_rate.toDouble();
+                                currency_rate.push_back(src_rate.toDouble());
                             }
                         }
                         xml.readNext();
@@ -103,7 +100,7 @@ void MainWindow::xml_parse(){
     xml.readNext();
 
 }
-
     file->close();
+
     ui->label_curr_rate->setText(QString::number(currency_rate[0]));
 }
