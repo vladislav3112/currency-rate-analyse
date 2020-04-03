@@ -8,6 +8,7 @@
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QNetworkReply>
 #include <QDebug>
+#include <qwt_plot.h>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -37,7 +38,6 @@ void MainWindow::on_Button_confirm_clicked()
     connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
     //http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=02/03/2001&date_req2=02/03/2001&VAL_NM_RQ=R01235 - example
 }
-
 void MainWindow::replyFinished(QNetworkReply *reply)
 {
     QString answer;
@@ -50,11 +50,10 @@ void MainWindow::replyFinished(QNetworkReply *reply)
         {
         case 0:
             answer = QString::fromLatin1(reply->readAll());
-            ui->textEdit->setText(answer);
-            file.write(ui->textEdit->toPlainText().toLatin1());
+            file.write(answer.toLatin1());
             break;
         default:
-            ui->textEdit->setText(this->trUtf8("Ошибка загрузки"));
+            qDebug()<<"Невозможно открыть XML-конфиг";
             break;
         }
 
@@ -102,5 +101,6 @@ void MainWindow::xml_parse(){
 }
     file->close();
 
-    ui->label_curr_rate->setText(QString::number(currency_rate[0]));
+    if(currency_rate.isEmpty()) ui->label_curr_rate->setText("В выходной день данных нет");
+    else        ui->label_curr_rate->setText(QString::number(currency_rate[0]));
 }
