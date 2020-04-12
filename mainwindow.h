@@ -21,9 +21,11 @@ private slots:
     void replyFinished(QNetworkReply *reply);
     void on_Button_confirm_clicked();
 
+    void on_Button_clr_plot_clicked();
+
 private:
     QMap<QString,QString> currency_code;
-    void addNewCurve(QString currency_name, QVector<double> currency_rate);
+    void addNewCurve(QString currency_name, QVector<double> currency_rate, QString color);
     Ui::MainWindow *ui;
 };
 #endif // MAINWINDOW_H

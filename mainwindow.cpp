@@ -15,6 +15,7 @@
 #include <qwt_symbol.h>
 #include <qwt_plot_picker.h>
 #include <qwt_picker_machine.h>
+#include <qwt_plot_dict.h>
 //add
 #include <qwt_plot_magnifier.h>
 MainWindow::MainWindow(QWidget *parent)
@@ -27,8 +28,10 @@ MainWindow::MainWindow(QWidget *parent)
     ui->dateEdit_2->setDate(QDate::currentDate());
     ui->comboBox->addItem("доллар");
     ui->comboBox->addItem("евро");
+    ui->comboBox->addItem("фунт стерлингов");
     currency_code.insert("R01235","доллар");
     currency_code.insert("R01239","евро");
+    currency_code.insert("R01035","фунт стерлингов");
 
     ui->qwtPlot->setTitle( "Курсы валют" );
     ui->qwtPlot->setAxisTitle(QwtPlot::yLeft, "Стоимомть");
@@ -38,17 +41,19 @@ MainWindow::MainWindow(QWidget *parent)
     QwtPlotGrid *grid = new QwtPlotGrid(); //
     grid->setMajorPen(QPen( Qt::gray, 2 )); // цвет линий и толщина
     grid->attach(ui->qwtPlot); // добавить сетку к полю графика
-    //picker_settings
     QwtPlotPicker *d_picker = new QwtPlotPicker(QwtPlot::xBottom, QwtPlot::yLeft,QwtPlotPicker::CrossRubberBand,
-        QwtPicker::ActiveOnly, // включение/выключение
-    ui->qwtPlot->canvas() ); // ассоциация с полем
-    // Цвет перпендикулярных линий
+        QwtPicker::ActiveOnly,
+    ui->qwtPlot->canvas() );
     d_picker->setRubberBandPen( QColor( Qt::red ) );
-    // цвет координат положения указателя
     d_picker->setTrackerPen( QColor( Qt::black ) );
-    // непосредственное включение вышеописанных функций
-    d_picker->setStateMachine(new QwtPickerDragPointMachine());
-
+    d_picker->setStateMachine(new QwtPickerDragPointMachine());    // непосредственное включение вышеописанных функций
+    //выбор цвета линии:
+    ui->comboBox_line_color->addItem("blue");
+    ui->comboBox_line_color->addItem("darkMagenta");
+    ui->comboBox_line_color->addItem("magenta");
+    ui->comboBox_line_color->addItem("green");
+    ui->comboBox_line_color->addItem("darkGreen");
+    ui->comboBox_line_color->addItem("purple");
 }
 
 MainWindow::~MainWindow()
@@ -120,7 +125,7 @@ void MainWindow::xml_parse(){
                         xml.readNext();
                     }
       if (xml.hasError()) {
-             qDebug()<<"ошибка xml - структуры";// do error handling
+             qDebug()<<"ошибка xml - структуры";
       }
     }
 
@@ -130,16 +135,15 @@ void MainWindow::xml_parse(){
 }
     file->close();
 
-    addNewCurve(ui->comboBox->currentText(),currency_rate);
+    addNewCurve(ui->comboBox->currentText(),currency_rate,ui->comboBox_line_color->currentText());//добавление новой линии.
 }
 
-void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rate){//add color chooser
+void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rate, QString color){//add color chooser
     QwtPlotCurve *curve = new QwtPlotCurve();
         curve->setTitle(currency_name);
-        curve->setPen( Qt::blue, 6 ); // цвет и толщина кривой
+        curve->setPen( QColor(color), 6 );
         curve->setRenderHint( QwtPlotItem::RenderAntialiased, true ); // сглаживание
 
-        // Маркеры кривой
         QwtSymbol *symbol = new QwtSymbol( QwtSymbol::Ellipse,
             QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
         curve->setSymbol( symbol );
@@ -147,11 +151,19 @@ void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rat
         // Добавить точки на ранее созданную кривую
         QPolygonF points;
 
-         for(int i = 0;i < currency_rate.size(); i++){
+         for(int i = 0; i < currency_rate.size(); i++){
             points << QPointF( i, currency_rate[i]);
          }
 
          curve->setSamples( points ); // ассоциировать набор точек с кривой
          curve->attach(ui->qwtPlot);
-         ui->qwtPlot->replot();
+         ui->qwtPlot->replot(); // перерисовка графика
 };
+
+void MainWindow::on_Button_clr_plot_clicked()
+{
+    ui->qwtPlot->detachItems(QwtPlotItem::Rtti_PlotItem, false);
+    QwtPlotGrid *grid = new QwtPlotGrid();
+    grid->setMajorPen(QPen( Qt::gray, 2 ));
+    grid->attach(ui->qwtPlot); // добавить сетку к полю графика
+}
