@@ -17,6 +17,7 @@
 #include <qwt_picker_machine.h>
 #include <qwt_plot_dict.h>
 //add
+#include <qwt_plot_panner.h>
 #include <qwt_plot_magnifier.h>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -29,16 +30,19 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox->addItem("доллар");
     ui->comboBox->addItem("евро");
     ui->comboBox->addItem("фунт стерлингов");
+    ui->comboBox->addItem("швейцарский франк (за 10)");
+
     currency_code.insert("R01235","доллар");
     currency_code.insert("R01239","евро");
     currency_code.insert("R01035","фунт стерлингов");
+    currency_code.insert("R01775","швейцарский франк (за 10)");
 
     ui->qwtPlot->setTitle( "Курсы валют" );
     ui->qwtPlot->setAxisTitle(QwtPlot::yLeft, "Стоимомть");
     ui->qwtPlot->setAxisTitle(QwtPlot::xBottom, "Дни");
     ui->qwtPlot->insertLegend(new QwtLegend());
     // Включить сетку
-    QwtPlotGrid *grid = new QwtPlotGrid(); //
+    QwtPlotGrid *grid = new QwtPlotGrid();
     grid->setMajorPen(QPen( Qt::gray, 2 )); // цвет линий и толщина
     grid->attach(ui->qwtPlot); // добавить сетку к полю графика
     QwtPlotPicker *d_picker = new QwtPlotPicker(QwtPlot::xBottom, QwtPlot::yLeft,QwtPlotPicker::CrossRubberBand,
@@ -47,6 +51,16 @@ MainWindow::MainWindow(QWidget *parent)
     d_picker->setRubberBandPen( QColor( Qt::red ) );
     d_picker->setTrackerPen( QColor( Qt::black ) );
     d_picker->setStateMachine(new QwtPickerDragPointMachine());    // непосредственное включение вышеописанных функций
+
+    // Включить возможность приближения/удаления графика
+    QwtPlotMagnifier *magnifier = new QwtPlotMagnifier(ui->qwtPlot->canvas());
+    // клавиша, активирующая приближение/удаление
+    magnifier->setMouseButton(Qt::MidButton);
+
+    // Включить возможность перемещения по графику
+    QwtPlotPanner *d_panner = new QwtPlotPanner(ui->qwtPlot->canvas() );
+    d_panner->setMouseButton( Qt::RightButton );
+
     //выбор цвета линии:
     ui->comboBox_line_color->addItem("blue");
     ui->comboBox_line_color->addItem("darkMagenta");
@@ -76,7 +90,6 @@ void MainWindow::replyFinished(QNetworkReply *reply)
 {
     QString answer;
     QFile file ("valute_rate.xml");
-    //file.reset();
     file.open(QIODevice::WriteOnly);
 
 
@@ -87,7 +100,7 @@ void MainWindow::replyFinished(QNetworkReply *reply)
             file.write(answer.toLatin1());
             break;
         default:
-            qDebug()<<"Невозможно открыть XML-конфиг";
+            qDebug()<<"Невозможно открыть XML-файл";
             break;
         }
 
@@ -101,9 +114,10 @@ void MainWindow::xml_parse(){
     QString code;
     code = currency_code.key(ui->comboBox->currentText());
     QString src_rate;
+    QDate curr_date,prev_date;
 
     QFile* file = new QFile("valute_rate.xml");
-        if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) qDebug()<<"Невозможно открыть XML-конфиг";
+        if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) qDebug()<<"Невозможно открыть XML-файл";
     QXmlStreamReader xml(file);
 
     while (!xml.atEnd()) {
@@ -113,15 +127,24 @@ void MainWindow::xml_parse(){
              // do processing
                 while (!(xml.tokenType() == QXmlStreamReader::EndElement && xml.name() == "Record"))
                     {
+
                         if (xml.tokenType() == QXmlStreamReader::StartElement)
                         {
                             if (xml.name() == "Value"){
+                                curr_date = QDate::fromString(attributes.value("Date").toString(),"dd.MM.yyyy");
                                 xml.readNext();
                                 src_rate = xml.text().toString();
                                 src_rate.replace(",",".");       //src data correction
                                 currency_rate.push_back(src_rate.toDouble());
+                                if(prev_date.daysTo(curr_date)>1){
+                                     for(int i = 0; i < prev_date.daysTo(curr_date)-1; i++)
+                                         currency_rate.push_back(currency_rate.last());
+                                }
+                                prev_date = curr_date;
+
                             }
                         }
+
                         xml.readNext();
                     }
       if (xml.hasError()) {
