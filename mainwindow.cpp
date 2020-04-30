@@ -16,7 +16,6 @@
 #include <qwt_plot_picker.h>
 #include <qwt_picker_machine.h>
 #include <qwt_plot_dict.h>
-//add
 #include <qwt_plot_panner.h>
 #include <qwt_plot_magnifier.h>
 MainWindow::MainWindow(QWidget *parent)
@@ -78,12 +77,22 @@ void MainWindow::on_Button_confirm_clicked()
 {
     QNetworkAccessManager *manager = new QNetworkAccessManager(this);
     QString code;
-    QString date1 = ui->dateEdit->date().toString("dd/MM/yyyy");
-    QString date2 = ui->dateEdit_2->date().toString("dd/MM/yyyy");
+    QDate date1 = ui->dateEdit->date();
+    QDate date2 = ui->dateEdit_2->date();
+    QString str_date1 = date1.toString("dd/MM/yyyy");
+    QString str_date2 = date2.toString("dd/MM/yyyy");
     code = currency_code.key(ui->comboBox->currentText());
-    QString url = "http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=" + date1 + "&date_req2=" + date2 + "&VAL_NM_RQ=" + code;
+
+    request = Curr_request(ui->dateEdit->date() , ui->dateEdit_2->date());
+    //если первая дата - сб или вс, то запрос надо делать с пятницы
+    if (date1.dayOfWeek() == 7 || date1.dayOfWeek() == 6)
+        str_date1 = (date1.addDays(5 - date1.dayOfWeek())).toString("dd/MM/yyyy");
+    QString url = "http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=" + str_date1 + "&date_req2=" + str_date2 + "&VAL_NM_RQ=" + code;
     manager->get(QNetworkRequest(QUrl(url)));
     connect(manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(replyFinished(QNetworkReply*)));
+
+
+
     //http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=02/03/2001&date_req2=02/03/2001&VAL_NM_RQ=R01235 - example
 }
 void MainWindow::replyFinished(QNetworkReply *reply)
@@ -114,12 +123,12 @@ void MainWindow::xml_parse(){
     QString code;
     code = currency_code.key(ui->comboBox->currentText());
     QString src_rate;
-    QDate curr_date,prev_date;
-
+    QDate curr_date;
+    QDate prev_date = request.getStart_date().addDays(-1);
+    int first_empty_days = 0;
     QFile* file = new QFile("valute_rate.xml");
         if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) qDebug()<<"Невозможно открыть XML-файл";
     QXmlStreamReader xml(file);
-
     while (!xml.atEnd()) {
 
             if(xml.name()=="Record"){
@@ -135,13 +144,13 @@ void MainWindow::xml_parse(){
                                 xml.readNext();
                                 src_rate = xml.text().toString();
                                 src_rate.replace(",",".");       //src data correction
-                                currency_rate.push_back(src_rate.toDouble());
+                                if(currency_rate.isEmpty())currency_rate.push_back(src_rate.toDouble());
                                 if(prev_date.daysTo(curr_date)>1){
                                      for(int i = 0; i < prev_date.daysTo(curr_date)-1; i++)
-                                         currency_rate.push_back(currency_rate.last());
+                                        currency_rate.push_back(currency_rate.last());
                                 }
                                 prev_date = curr_date;
-
+                                currency_rate.push_back(src_rate.toDouble());
                             }
                         }
 
@@ -157,30 +166,38 @@ void MainWindow::xml_parse(){
 
 }
     file->close();
+    //weekend days handling
 
-    addNewCurve(ui->comboBox->currentText(),currency_rate,ui->comboBox_line_color->currentText());//добавление новой линии.
+    if(request.getStart_date().dayOfWeek() == 6 || request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
+    if(request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
+
+    if(currency_rate.size()<request.getStart_date().daysTo(request.getEnd_date())){
+    if(request.getEnd_date().dayOfWeek()== 6 || request.getEnd_date().dayOfWeek()== 7)currency_rate.push_back(currency_rate.back());
+    if(request.getEnd_date().dayOfWeek()== 6)currency_rate.push_back(currency_rate.back());
+    }
+    addNewCurve(ui->comboBox->currentText(),currency_rate,ui->comboBox_line_color->currentText());//add new line.
 }
 
 void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rate, QString color){//add color chooser
     QwtPlotCurve *curve = new QwtPlotCurve();
         curve->setTitle(currency_name);
         curve->setPen( QColor(color), 6 );
-        curve->setRenderHint( QwtPlotItem::RenderAntialiased, true ); // сглаживание
+        curve->setRenderHint( QwtPlotItem::RenderAntialiased, true ); // alising
 
         QwtSymbol *symbol = new QwtSymbol( QwtSymbol::Ellipse,
             QBrush( Qt::yellow ), QPen( Qt::red, 2 ), QSize( 8, 8 ) );
         curve->setSymbol( symbol );
 
-        // Добавить точки на ранее созданную кривую
+        // add points for curve
         QPolygonF points;
 
          for(int i = 0; i < currency_rate.size(); i++){
             points << QPointF( i, currency_rate[i]);
          }
 
-         curve->setSamples( points ); // ассоциировать набор точек с кривой
+         curve->setSamples( points ); // points assotiation
          curve->attach(ui->qwtPlot);
-         ui->qwtPlot->replot(); // перерисовка графика
+         ui->qwtPlot->replot();
 };
 
 void MainWindow::on_Button_clr_plot_clicked()
