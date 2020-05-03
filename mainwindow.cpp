@@ -8,16 +8,21 @@
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QNetworkReply>
 #include <QDebug>
+//plot features
 #include <qwt_plot.h>
+#include <qwt_plot_picker.h>
 #include <qwt_plot_grid.h>
 #include <qwt_legend.h>
 #include <qwt_plot_curve.h>
 #include <qwt_symbol.h>
-#include <qwt_plot_picker.h>
 #include <qwt_picker_machine.h>
 #include <qwt_plot_dict.h>
 #include <qwt_plot_panner.h>
 #include <qwt_plot_magnifier.h>
+//date
+#include <qwt_date.h>
+#include <qwt_date_scale_engine.h>
+#include <qwt_date_scale_draw.h>
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -26,47 +31,65 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->dateEdit->setDate(QDate::currentDate());
     ui->dateEdit_2->setDate(QDate::currentDate());
+
     ui->comboBox->addItem("доллар");
     ui->comboBox->addItem("евро");
     ui->comboBox->addItem("фунт стерлингов");
     ui->comboBox->addItem("швейцарский франк (за 10)");
+    ui->comboBox->addItem("австралийский доллар");
+    ui->comboBox->addItem("бразильский реал");
+    ui->comboBox->addItem("датских крон (за 10)");
+    ui->comboBox->addItem("казахстанских тенге (за 100)");
+    ui->comboBox->addItem("японских иен (за 100)");
+    ui->comboBox->addItem("турецкая лира");
 
     currency_code.insert("R01235","доллар");
     currency_code.insert("R01239","евро");
     currency_code.insert("R01035","фунт стерлингов");
     currency_code.insert("R01775","швейцарский франк (за 10)");
+    currency_code.insert("R01010","австралийский доллар");
+    currency_code.insert("R01115","бразильский реал");
+    currency_code.insert("R01215","датских крон (за 10)");
+    currency_code.insert("R01335","казахстанских тенге (за 100)");
+    currency_code.insert("R01820","японских иен (за 100)");
+    currency_code.insert("R01700J","турецкая лира");
 
     ui->qwtPlot->setTitle( "Курсы валют" );
     ui->qwtPlot->setAxisTitle(QwtPlot::yLeft, "Стоимомть");
     ui->qwtPlot->setAxisTitle(QwtPlot::xBottom, "Дни");
     ui->qwtPlot->insertLegend(new QwtLegend());
-    // Включить сетку
-    QwtPlotGrid *grid = new QwtPlotGrid();
-    grid->setMajorPen(QPen( Qt::gray, 2 )); // цвет линий и толщина
-    grid->attach(ui->qwtPlot); // добавить сетку к полю графика
-    QwtPlotPicker *d_picker = new QwtPlotPicker(QwtPlot::xBottom, QwtPlot::yLeft,QwtPlotPicker::CrossRubberBand,
-        QwtPicker::ActiveOnly,
-    ui->qwtPlot->canvas() );
-    d_picker->setRubberBandPen( QColor( Qt::red ) );
-    d_picker->setTrackerPen( QColor( Qt::black ) );
-    d_picker->setStateMachine(new QwtPickerDragPointMachine());    // непосредственное включение вышеописанных функций
 
-    // Включить возможность приближения/удаления графика
+    ui->qwtPlot->setAxisScaleDraw( QwtPlot::xBottom, new QwtDateScaleDraw);
+    ui->qwtPlot->setAxisScaleEngine( QwtPlot::xBottom, new QwtDateScaleEngine);
+
+    QwtPlotGrid *grid = new QwtPlotGrid();
+    grid->setMajorPen(QPen( Qt::gray, 2 ));
+    grid->attach(ui->qwtPlot);
     QwtPlotMagnifier *magnifier = new QwtPlotMagnifier(ui->qwtPlot->canvas());
-    // клавиша, активирующая приближение/удаление
     magnifier->setMouseButton(Qt::MidButton);
 
-    // Включить возможность перемещения по графику
+    //move plot enabling:
     QwtPlotPanner *d_panner = new QwtPlotPanner(ui->qwtPlot->canvas() );
     d_panner->setMouseButton( Qt::RightButton );
 
-    //выбор цвета линии:
     ui->comboBox_line_color->addItem("blue");
     ui->comboBox_line_color->addItem("darkMagenta");
     ui->comboBox_line_color->addItem("magenta");
     ui->comboBox_line_color->addItem("green");
     ui->comboBox_line_color->addItem("darkGreen");
     ui->comboBox_line_color->addItem("purple");
+
+    //point coordinates
+    QwtPlotPicker *d_picker =
+                new QwtPlotPicker(
+                    QwtPlot::xBottom, QwtPlot::yLeft,
+        QwtPlotPicker::CrossRubberBand,
+        QwtPicker::ActiveOnly,
+        ui->qwtPlot->canvas() );
+
+        d_picker->setRubberBandPen( QColor( Qt::red ) );
+        d_picker->setTrackerPen( QColor( Qt::black ) );
+        d_picker->setStateMachine( new QwtPickerDragPointMachine() );
 }
 
 MainWindow::~MainWindow()
@@ -93,7 +116,7 @@ void MainWindow::on_Button_confirm_clicked()
 
 
 
-    //http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=02/03/2001&date_req2=02/03/2001&VAL_NM_RQ=R01235 - example
+    //http://www.cbr.ru/scripts/XML_dynamic.asp?date_req1=02/03/2001&date_req2=02/03/2001&VAL_NM_RQ=R01270 - example
 }
 void MainWindow::replyFinished(QNetworkReply *reply)
 {
@@ -125,7 +148,6 @@ void MainWindow::xml_parse(){
     QString src_rate;
     QDate curr_date;
     QDate prev_date = request.getStart_date().addDays(-1);
-    int first_empty_days = 0;
     QFile* file = new QFile("valute_rate.xml");
         if (!file->open(QIODevice::ReadOnly | QIODevice::Text)) qDebug()<<"Невозможно открыть XML-файл";
     QXmlStreamReader xml(file);
@@ -144,13 +166,14 @@ void MainWindow::xml_parse(){
                                 xml.readNext();
                                 src_rate = xml.text().toString();
                                 src_rate.replace(",",".");       //src data correction
-                                if(currency_rate.isEmpty())currency_rate.push_back(src_rate.toDouble());
-                                if(prev_date.daysTo(curr_date)>1){
-                                     for(int i = 0; i < prev_date.daysTo(curr_date)-1; i++)
-                                        currency_rate.push_back(currency_rate.last());
-                                }
-                                prev_date = curr_date;
                                 currency_rate.push_back(src_rate.toDouble());
+                                if(prev_date.daysTo(curr_date)>1)
+                                    for(int i = 0; i < prev_date.daysTo(curr_date)-1; i++){
+                                       if(currency_rate.size() == 1) currency_rate.push_back(currency_rate.back());
+                                       else currency_rate.insert(currency_rate.size()-2,currency_rate[currency_rate.size()-2]);//weekend days insert
+                                    }
+                                prev_date = curr_date;
+
                             }
                         }
 
@@ -168,10 +191,10 @@ void MainWindow::xml_parse(){
     file->close();
     //weekend days handling
 
-    if(request.getStart_date().dayOfWeek() == 6 || request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
-    if(request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
+    if(currency_rate.size()!=1 + request.getStart_date().daysTo(request.getEnd_date()) && (request.getStart_date().dayOfWeek() == 6 || request.getStart_date().dayOfWeek() == 7)) currency_rate.pop_front();
+    if(currency_rate.size()!=1 + request.getStart_date().daysTo(request.getEnd_date()) && request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
 
-    if(currency_rate.size()<request.getStart_date().daysTo(request.getEnd_date())){
+    if(currency_rate.size()< 1 + request.getStart_date().daysTo(request.getEnd_date())){
     if(request.getEnd_date().dayOfWeek()== 6 || request.getEnd_date().dayOfWeek()== 7)currency_rate.push_back(currency_rate.back());
     if(request.getEnd_date().dayOfWeek()== 6)currency_rate.push_back(currency_rate.back());
     }
@@ -192,7 +215,7 @@ void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rat
         QPolygonF points;
 
          for(int i = 0; i < currency_rate.size(); i++){
-            points << QPointF( i, currency_rate[i]);
+            points << QPointF( QwtDate::toDouble(QDateTime(request.getStart_date().addDays(i))), currency_rate[i]);
          }
 
          curve->setSamples( points ); // points assotiation
