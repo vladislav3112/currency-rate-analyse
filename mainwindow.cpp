@@ -194,9 +194,8 @@ void MainWindow::xml_parse(){
     if(currency_rate.size()!=1 + request.getStart_date().daysTo(request.getEnd_date()) && (request.getStart_date().dayOfWeek() == 6 || request.getStart_date().dayOfWeek() == 7)) currency_rate.pop_front();
     if(currency_rate.size()!=1 + request.getStart_date().daysTo(request.getEnd_date()) && request.getStart_date().dayOfWeek() == 7) currency_rate.pop_front();
 
-    if(currency_rate.size()< 1 + request.getStart_date().daysTo(request.getEnd_date())){
-    if(request.getEnd_date().dayOfWeek()== 6 || request.getEnd_date().dayOfWeek()== 7)currency_rate.push_back(currency_rate.back());
-    if(request.getEnd_date().dayOfWeek()== 6)currency_rate.push_back(currency_rate.back());
+    while(currency_rate.size()< 1 + request.getStart_date().daysTo(request.getEnd_date())){
+        currency_rate.push_back(currency_rate.back());
     }
     addNewCurve(ui->comboBox->currentText(),currency_rate,ui->comboBox_line_color->currentText());//add new line.
 }
@@ -228,5 +227,5 @@ void MainWindow::on_Button_clr_plot_clicked()
     ui->qwtPlot->detachItems(QwtPlotItem::Rtti_PlotItem, false);
     QwtPlotGrid *grid = new QwtPlotGrid();
     grid->setMajorPen(QPen( Qt::gray, 2 ));
-    grid->attach(ui->qwtPlot); // добавить сетку к полю графика
+    grid->attach(ui->qwtPlot);
 }
