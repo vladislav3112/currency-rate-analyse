@@ -67,6 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
     grid->attach(ui->qwtPlot);
     QwtPlotMagnifier *magnifier = new QwtPlotMagnifier(ui->qwtPlot->canvas());
     magnifier->setMouseButton(Qt::MidButton);
+    //magnifier->setAxisEnabled(QwtPlot::xBottom,0);
 
     //move plot enabling:
     QwtPlotPanner *d_panner = new QwtPlotPanner(ui->qwtPlot->canvas() );
@@ -216,6 +217,7 @@ void MainWindow::addNewCurve(QString currency_name, QVector<double> currency_rat
          for(int i = 0; i < currency_rate.size(); i++){
             points << QPointF( QwtDate::toDouble(QDateTime(request.getStart_date().addDays(i))), currency_rate[i]);
          }
+         if (currency_rate.size()==1) ui->label_curr_rate->setText(QString::number(currency_rate[0]));//current currency rate
 
          curve->setSamples( points ); // points assotiation
          curve->attach(ui->qwtPlot);
